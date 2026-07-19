@@ -6,9 +6,7 @@ using UnityEngine.Experimental.Rendering;
 using Unity.Mathematics;
 using static Unity.Mathematics.math;
 
-#if UNITY_6000_0_OR_NEWER
 using UnityEngine.Rendering.RenderGraphModule;
-#endif
 
 /// <summary>
 /// A renderer feature that adds physically based sky and precomputed atmospheric scattering support to the URP volume.
@@ -43,19 +41,16 @@ public class PhysicallyBasedSkyURP : ScriptableRendererFeature
     [SerializeField] private PrecomputationQualityMode m_Precomputation = PrecomputationQualityMode.High;
 
     private bool isShaderMismatchLogPrinted;
-#if AMBIENT_PROBE
+
     private int lastSkyType;
     private VisualEnvironment.SkyAmbientMode lastSkyAmbientMode;
-#endif // AMBIENT_PROBE
 
     private CelestialBodyData m_CelestialBodyData = new CelestialBodyData();
 
     private PBSkyPrePass m_PBSkyPrePass;
     private SkyViewLUTPass m_SkyViewLUTPass;
     private AtmosphericScatteringPass m_AtmosphericScatteringPass;
-#if AMBIENT_PROBE
     private AmbientProbePass m_AmbientProbePass;
-#endif // AMBIENT_PROBE
     private PBSkyPostPass m_PBSkyPostPass;
 
     [Header("Sky")]
@@ -71,9 +66,9 @@ public class PhysicallyBasedSkyURP : ScriptableRendererFeature
 
     private const string k_CloudsShaderName = "Hidden/Sky/VolumetricClouds";
     private const string k_PbrSkyMaterialName = "Physically Based Sky";
-#if AMBIENT_PROBE
+
     private const string k_DynamicAmbientProbeKeywordName = "VISUAL_ENVIRONMENT_DYNAMIC_SKY";
-#endif // AMBIENT_PROBE
+
     private const string k_AtmosphericScatteringLowResolutionKeywordName = "ATMOSPHERIC_SCATTERING_LOW_RES";
 
     /// <summary>
@@ -180,11 +175,11 @@ public class PhysicallyBasedSkyURP : ScriptableRendererFeature
 
     public override void Create()
     {
-#if AMBIENT_PROBE
+
         var stack = VolumeManager.instance.stack;
         PhysicallyBasedSky pbrSkyVolume = stack.GetComponent<PhysicallyBasedSky>();
         VisualEnvironment visualEnvVolume = stack.GetComponent<VisualEnvironment>();
-#endif // AMBIENT_PROBE
+
 
         // Validate sky shaders
         bool shadersValid = true;
@@ -218,7 +213,7 @@ public class PhysicallyBasedSkyURP : ScriptableRendererFeature
         // Cleanup settings when disabled
         if (!isActive)
         {
-#if AMBIENT_PROBE
+
             bool isCustomSkyType = visualEnvVolume != null && visualEnvVolume.IsActive() && visualEnvVolume.skyType.value == (int)VisualEnvironment.SkyType.Custom && visualEnvVolume.customSkyMaterial.value != null;
 
             RenderSettings.skybox = isCustomSkyType ? visualEnvVolume.customSkyMaterial.value : m_FallbackSkyMaterial;
@@ -234,7 +229,7 @@ public class PhysicallyBasedSkyURP : ScriptableRendererFeature
                 DynamicGI.UpdateEnvironment();
             }
         #endif
-#endif // AMBIENT_PROBE
+
 
             return;
         }
@@ -267,12 +262,12 @@ public class PhysicallyBasedSkyURP : ScriptableRendererFeature
 
         m_AtmosphericScatteringPass.lutMaterial = m_PbrSkyLUTMaterial;
         
-#if AMBIENT_PROBE
+
         m_AmbientProbePass ??= new AmbientProbePass(m_VolumetricCloudsMaterial)
         {
             renderPassEvent = RenderPassEvent.AfterRenderingPrePasses
         };
-#endif // AMBIENT_PROBE
+
 
         m_PBSkyPostPass ??= new PBSkyPostPass()
         {
@@ -344,7 +339,7 @@ public class PhysicallyBasedSkyURP : ScriptableRendererFeature
             renderer.EnqueuePass(m_PBSkyPostPass);
         }
         
-#if AMBIENT_PROBE
+
         if (visualEnvVolume.skyAmbientMode.value == VisualEnvironment.SkyAmbientMode.Dynamic && renderingData.cameraData.camera.cameraType != CameraType.Reflection && RenderSettings.skybox != null)
         {
             m_AmbientProbePass.visualEnvironment = visualEnvVolume;
@@ -357,7 +352,7 @@ public class PhysicallyBasedSkyURP : ScriptableRendererFeature
         {
             Shader.DisableKeyword(k_DynamicAmbientProbeKeywordName);
         }
-#endif // AMBIENT_PROBE
+
 
         UpdateSkySettings(isPbrSky, visualEnvVolume);
     }
@@ -373,10 +368,10 @@ public class PhysicallyBasedSkyURP : ScriptableRendererFeature
         if (m_AtmosphericScatteringPass != null)
             m_AtmosphericScatteringPass.Dispose();
         
-#if AMBIENT_PROBE
+
         if (m_AmbientProbePass != null)
             m_AmbientProbePass.Dispose();
-#endif // AMBIENT_PROBE
+
 
         if (m_PBSkyPostPass != null)
             m_PBSkyPostPass.Dispose();
@@ -397,7 +392,7 @@ public class PhysicallyBasedSkyURP : ScriptableRendererFeature
 
     private void UpdateSkySettings(bool isPbrSky, VisualEnvironment visualEnvVolume)
     {
-#if AMBIENT_PROBE
+
         bool isCustomSky = visualEnvVolume.skyType.value == (int)VisualEnvironment.SkyType.Custom;
         bool isCustomSkyValid = visualEnvVolume.customSkyMaterial.value != null;
 
@@ -432,12 +427,6 @@ public class PhysicallyBasedSkyURP : ScriptableRendererFeature
 
         lastSkyType = visualEnvVolume.skyType.value;
         lastSkyAmbientMode = visualEnvVolume.skyAmbientMode.value;
-#else
-        // Update the sky material
-        RenderSettings.skybox = isPbrSky
-            ? m_PbrSkyMaterial
-            : m_FallbackSkyMaterial;
-#endif // AMBIENT_PROBE
     }
 
     /// <summary>
@@ -533,7 +522,7 @@ public class PhysicallyBasedSkyURP : ScriptableRendererFeature
         private const string LOCAL_SKY = "LOCAL_SKY";
         private const string SKY_NOT_BAKING = "SKY_NOT_BAKING";
         
-#if AMBIENT_PROBE
+
         private SphericalHarmonicsL2 ambientProbe = new SphericalHarmonicsL2();
 
         private const int fibonacciSamplesCount = 64;
@@ -603,7 +592,7 @@ public class PhysicallyBasedSkyURP : ScriptableRendererFeature
             new float3(0.103734f, 0.968254f, -0.227428f),
             new float3(-0.000000f, 1.000000f, 0.000000f)
         };
-#endif // AMBIENT_PROBE
+
 
         public PBSkyPrePass(Material material, CelestialBodyData celestialBodyData)
         {
@@ -611,7 +600,7 @@ public class PhysicallyBasedSkyURP : ScriptableRendererFeature
             this.celestialBodyData = celestialBodyData;
         }
 
-        #region Non Render Graph Pass
+        
         // Passing the final sun color to the Execute() method
         private float3 mainLightColor;
 
@@ -628,67 +617,6 @@ public class PhysicallyBasedSkyURP : ScriptableRendererFeature
 
             return RenderSettings.sun;
         }
-
-    #if UNITY_6000_0_OR_NEWER
-        [Obsolete]
-    #endif
-        public override void OnCameraSetup(CommandBuffer cmd, ref RenderingData renderingData)
-        {
-            Camera camera = renderingData.cameraData.camera;
-            Light mainLight = GetMainLight(renderingData.lightData);
-
-            if (mainLight != null)
-            {
-                float3 sunAttenuation = EvaluateSunColorAttenuation(float3(camera.transform.position) - visualEnvironment.GetPlanetCenterRadius(camera.transform.position).xyz, -mainLight.transform.forward);
-
-                Color color = mainLight.color.linear * (mainLight.useColorTemperature ? Mathf.CorrelatedColorTemperatureToRGB(mainLight.colorTemperature) : Color.white);
-                mainLightColor = float3(color.r, color.g, color.b) * mainLight.intensity * sunAttenuation;
-
-            #if URP_PHYSICAL_LIGHT
-                bool isPhysicalLight = mainLight.GetComponent<AdditionalLightData>() != null;
-
-                mainLightColor = isPhysicalLight ? mainLightColor * rcp(PI) : mainLightColor;
-            #endif
-            }
-
-            UpdateMaterialProperties(mainLight, camera, material);
-            lutMaterial.CopyPropertiesFromMaterial(material);
-            
-#if AMBIENT_PROBE
-            if (mainLight != null && visualEnvironment.skyAmbientMode.value == VisualEnvironment.SkyAmbientMode.Dynamic)
-            {
-                ambientProbe = UpdateAmbientProbe(ambientProbe, mainLight.transform.forward, mainLightColor);
-                RenderSettings.ambientProbe = ambientProbe;
-            }
-#endif // AMBIENT_PROBE
-        }
-
-    #if UNITY_6000_0_OR_NEWER
-        [Obsolete]
-    #endif
-        public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)
-        {
-            CommandBuffer cmd = CommandBufferPool.Get();
-
-            using (new ProfilingScope(cmd, m_ProfilingSampler))
-            {
-                bool isReflectionCamera = renderingData.cameraData.camera.cameraType == CameraType.Reflection;
-                cmd.SetGlobalFloat(_DisableSunDisk, isReflectionCamera ? 1.0f : 0.0f);
-                cmd.SetGlobalVector(_MainLightColor, float4(mainLightColor, 0.0f));
-                cmd.EnableShaderKeyword(PHYSICALLY_BASED_SKY);
-                cmd.EnableShaderKeyword(SKY_NOT_BAKING);
-                cmd.SetGlobalFloat(_EnableAtmosphericScattering, pbrSky.atmosphericScattering.value ? 1.0f : 0.0f);
-            }
-
-            context.ExecuteCommandBuffer(cmd);
-            cmd.Clear();
-            
-            CommandBufferPool.Release(cmd);
-        }
-        #endregion
-
-    #if UNITY_6000_0_OR_NEWER
-        #region Render Graph Pass
 
         private Light GetMainLight(UniversalLightData lightData)
         {
@@ -770,16 +698,16 @@ public class PhysicallyBasedSkyURP : ScriptableRendererFeature
                 builder.SetRenderFunc((PassData data, UnsafeGraphContext context) => ExecutePass(data, context));
             }
         }
-        #endregion
-    #endif
+        
+    
 
-        #region Shared
+        
         public void Dispose()
         {
 
         }
 
-#if AMBIENT_PROBE
+
         SphericalHarmonicsL2 UpdateAmbientProbe(SphericalHarmonicsL2 ambientProbe, float3 lightDirection, float3 lightColor)
         {
             ambientProbe.Clear();
@@ -796,7 +724,7 @@ public class PhysicallyBasedSkyURP : ScriptableRendererFeature
             }
             return ambientProbe;
         }
-#endif // AMBIENT_PROBE
+
 
         private void UpdateMaterialProperties(Light mainLight, Camera camera, Material material)
         {
@@ -1054,7 +982,7 @@ public class PhysicallyBasedSkyURP : ScriptableRendererFeature
                 return 0;
             }
         }
-#endregion
+
     }
 
     /// <summary>
@@ -1135,187 +1063,12 @@ public class PhysicallyBasedSkyURP : ScriptableRendererFeature
             this.celestialBodyData = celestialBodyData;
         }
 
-        #region Non Render Graph Pass
+        
         bool lutDataChanged;
-#if UNITY_6000_0_OR_NEWER
-        [Obsolete]
-#endif
-        public override void OnCameraSetup(CommandBuffer cmd, ref RenderingData renderingData)
-        {
-            RenderTextureDescriptor desc = renderingData.cameraData.cameraTargetDescriptor;
-            desc.depthBufferBits = 0;
-            desc.msaaSamples = 1;
-            desc.useMipMap = false;
-            desc.autoGenerateMips = false;
-            desc.graphicsFormat = GraphicsFormat.B10G11R11_UFloatPack32;
-            desc.dimension = TextureDimension.Tex2D;
-            desc.useDynamicScale = false;
 
-            desc.width = k_MultiScatteringLutWidth;
-            desc.height = k_MultiScatteringLutHeight;
-#if UNITY_6000_0_OR_NEWER
-            RenderingUtils.ReAllocateHandleIfNeeded(ref multiScatteringLUTHandle, desc, FilterMode.Bilinear, TextureWrapMode.Clamp, name: _MultiScatteringLUT);
-#else
-            RenderingUtils.ReAllocateIfNeeded(ref multiScatteringLUTHandle, desc, FilterMode.Bilinear, TextureWrapMode.Clamp, name: _MultiScatteringLUT);
-#endif
+        
 
-            desc.width = k_SkyViewLutWidth;
-            desc.height = k_SkyViewLutHeight;
-#if UNITY_6000_0_OR_NEWER
-            RenderingUtils.ReAllocateHandleIfNeeded(ref skyViewLUTHandle, desc, FilterMode.Bilinear, TextureWrapMode.Clamp, name: _SkyViewLUT);
-#else
-            RenderingUtils.ReAllocateIfNeeded(ref skyViewLUTHandle, desc, FilterMode.Bilinear, TextureWrapMode.Clamp, name: _SkyViewLUT);
-#endif
-
-            desc.width = k_GroundIrradianceTableSize;
-            desc.height = 1;
-#if UNITY_6000_0_OR_NEWER
-            lutDataChanged = RenderingUtils.ReAllocateHandleIfNeeded(ref groundIrradianceHandle, desc, FilterMode.Bilinear, TextureWrapMode.Clamp, name: _GroundIrradianceTexture);
-#else
-            lutDataChanged = RenderingUtils.ReAllocateIfNeeded(ref groundIrradianceHandle, desc, FilterMode.Bilinear, TextureWrapMode.Clamp, name: _GroundIrradianceTexture);
-#endif
-
-            // Switched Y and Z dimension to reduce draw calls.
-            desc.memoryless = RenderTextureMemoryless.None;
-            desc.dimension = TextureDimension.Tex3D;
-            desc.width = halfResolutionLuts ? k_InScatteredRadianceTableSizeX / 2 : k_InScatteredRadianceTableSizeX;
-            desc.height = halfResolutionLuts ? (k_InScatteredRadianceTableSizeZ * k_InScatteredRadianceTableSizeW) / 2 : k_InScatteredRadianceTableSizeZ * k_InScatteredRadianceTableSizeW;
-            desc.volumeDepth = halfResolutionLuts ? k_InScatteredRadianceTableSizeY / 2 : k_InScatteredRadianceTableSizeY;
-#if UNITY_6000_0_OR_NEWER
-            lutDataChanged |= RenderingUtils.ReAllocateHandleIfNeeded(ref airSingleScatteringHandle, desc, FilterMode.Bilinear, TextureWrapMode.Clamp, name: _AirSingleScatteringTexture);
-            lutDataChanged |= RenderingUtils.ReAllocateHandleIfNeeded(ref aerosolSingleScatteringHandle, desc, FilterMode.Bilinear, TextureWrapMode.Clamp, name: _AerosolSingleScatteringTexture);
-            lutDataChanged |= RenderingUtils.ReAllocateHandleIfNeeded(ref multipleScatteringHandle, desc, FilterMode.Bilinear, TextureWrapMode.Clamp, name: _MultipleScatteringTexture);
-#else
-            lutDataChanged |= RenderingUtils.ReAllocateIfNeeded(ref airSingleScatteringHandle, desc, FilterMode.Bilinear, TextureWrapMode.Clamp, name: _AirSingleScatteringTexture);
-            lutDataChanged |= RenderingUtils.ReAllocateIfNeeded(ref aerosolSingleScatteringHandle, desc, FilterMode.Bilinear, TextureWrapMode.Clamp, name: _AerosolSingleScatteringTexture);
-            lutDataChanged |= RenderingUtils.ReAllocateIfNeeded(ref multipleScatteringHandle, desc, FilterMode.Bilinear, TextureWrapMode.Clamp, name: _MultipleScatteringTexture);
-#endif
-
-            // Unused
-            /*
-            desc.width = k_AtmosphericScatteringLutWidth;
-            desc.height = k_AtmosphericScatteringLutHeight;
-            desc.volumeDepth = k_AtmosphericScatteringLutDepth;
-#if UNITY_6000_0_OR_NEWER
-            RenderingUtils.ReAllocateHandleIfNeeded(ref atmosphericScatteringLUTHandle, desc, FilterMode.Trilinear, TextureWrapMode.Clamp, name: _AtmosphericScatteringLUT);
-            RenderingUtils.ReAllocateHandleIfNeeded(ref skyTransmittanceHandle, desc, FilterMode.Point, TextureWrapMode.Clamp, name: "_SkyTransmittance");
-#else
-            RenderingUtils.ReAllocateIfNeeded(ref atmosphericScatteringLUTHandle, desc, FilterMode.Point, TextureWrapMode.Clamp, name: _AtmosphericScatteringLUT);
-            RenderingUtils.ReAllocateIfNeeded(ref skyTransmittanceHandle, desc, FilterMode.Point, TextureWrapMode.Clamp, name: "_SkyTransmittance");
-#endif
-
-            desc.dimension = TextureDimension.Tex2D;
-            desc.volumeDepth = 1;
-#if UNITY_6000_0_OR_NEWER
-            RenderingUtils.ReAllocateHandleIfNeeded(ref atmosphericScatteringSliceHandle, desc, FilterMode.Point, TextureWrapMode.Clamp, name: "_AtmosphericScatteringSlice");
-            RenderingUtils.ReAllocateHandleIfNeeded(ref skyTransmittanceSliceHandle, desc, FilterMode.Point, TextureWrapMode.Clamp, name: "_SkyTransmittanceSlice");
-#else
-            RenderingUtils.ReAllocateIfNeeded(ref atmosphericScatteringSliceHandle, desc, FilterMode.Point, TextureWrapMode.Clamp, name: "_AtmosphericScatteringSlice");
-            RenderingUtils.ReAllocateIfNeeded(ref skyTransmittanceSliceHandle, desc, FilterMode.Point, TextureWrapMode.Clamp, name: "_SkyTransmittanceSlice");
-#endif
-            */
-
-            lutDataChanged |= HasLutDataChanged();
-            m_LastPrecomputationParamHash = lutDataChanged ? 0 : m_LastPrecomputationParamHash;
-        }
-
-#if UNITY_6000_0_OR_NEWER
-        [Obsolete]
-#endif
-        public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)
-        {
-            CommandBuffer cmd = CommandBufferPool.Get();
-
-            bool precomputationChanged = HasPrecomputationDataChanged() || lutDataChanged;
-            //bool celestialBodyDataChanged = HasCelestialBodyDataChanged() || lutDataChanged;
-
-            bool cameraSpaceSky = visualEnvironment.renderingSpace.value == VisualEnvironment.RenderingSpace.Camera;
-            bool isStereoEnabled = renderingData.cameraData.camera.stereoEnabled;
-
-            using (new ProfilingScope(cmd, m_ProfilingSampler))
-            {
-                if (isStereoEnabled)
-                    cmd.DisableShaderKeyword(STEREO_INSTANCING_ON);
-
-                if (precomputationChanged)
-                {
-                    Blitter.BlitCameraTexture(cmd, multiScatteringLUTHandle, multiScatteringLUTHandle, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, lutMaterial, pass: 1);
-                }
-
-                lutMaterial.SetTexture(multiScatteringLUT, multiScatteringLUTHandle);
-
-                if (cameraSpaceSky)
-                {
-                    Blitter.BlitCameraTexture(cmd, skyViewLUTHandle, skyViewLUTHandle, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, lutMaterial, pass: 0);
-                }
-
-                cmd.SetGlobalTexture(skyViewLUT, skyViewLUTHandle);
-
-                if (precomputationChanged)
-                {
-                    // InScattered Radiance LUTs
-                    lutHandles[0] = airSingleScatteringHandle;
-                    lutHandles[1] = aerosolSingleScatteringHandle;
-                    lutHandles[2] = multipleScatteringHandle;
-
-                    int slices = halfResolutionLuts ? k_InScatteredRadianceTableSizeY / 2 : k_InScatteredRadianceTableSizeY;
-                    for (int slice = 0; slice < slices; ++slice)
-                    {
-                        cmd.SetGlobalInteger(PBSky_TableCoord_Z, slice);
-                        cmd.SetRenderTarget(lutHandles, airSingleScatteringHandle, 0, CubemapFace.Unknown, slice);
-                        Blitter.BlitTexture(cmd, airSingleScatteringHandle, m_ScaleBias, lutMaterial, pass: 2);
-                    }
-
-                    if (!cameraSpaceSky)
-                    {
-                        Blitter.BlitCameraTexture(cmd, groundIrradianceHandle, groundIrradianceHandle, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, lutMaterial, pass: 3);
-                    }
-                }
-
-                // Unused
-                /*
-                if (precomputedAtmosphericScattering)
-                {
-                    for (int slice = 0; slice < k_AtmosphericScatteringLutDepth; ++slice)
-                    {
-                        sliceHandles[0] = atmosphericScatteringLUTHandle;
-                        sliceHandles[1] = skyTransmittanceHandle;
-
-                        cmd.SetGlobalInteger(PBSky_TableCoord_Z, slice);
-                        cmd.SetRenderTarget(sliceHandles, atmosphericScatteringLUTHandle, 0, CubemapFace.Unknown, slice);
-
-                        Blitter.BlitTexture(cmd, atmosphericScatteringLUTHandle, m_ScaleBias, lutMaterial, pass: 5);
-
-                        cmd.CopyTexture(atmosphericScatteringLUTHandle, slice, 0, 0, 0, k_AtmosphericScatteringLutWidth, k_AtmosphericScatteringLutHeight, atmosphericScatteringSliceHandle, 0, 0, 0, 0);
-                        cmd.CopyTexture(skyTransmittanceHandle, slice, 0, 0, 0, k_AtmosphericScatteringLutWidth, k_AtmosphericScatteringLutHeight, skyTransmittanceSliceHandle, 0, 0, 0, 0);
-                    }
-                }
-
-                lutMaterial.SetTexture("_AtmosphericScatteringSlice", atmosphericScatteringSliceHandle);
-                lutMaterial.SetTexture("_SkyTransmittanceSlice", skyTransmittanceSliceHandle);
-
-                cmd.SetGlobalTexture(atmosphericScatteringLUT, atmosphericScatteringLUTHandle);
-                */
-
-                cmd.SetGlobalTexture(airSingleScatteringTexture, airSingleScatteringHandle);
-                cmd.SetGlobalTexture(aerosolSingleScatteringTexture, aerosolSingleScatteringHandle);
-                cmd.SetGlobalTexture(multipleScatteringTexture, multipleScatteringHandle);
-                cmd.SetGlobalTexture(groundIrradianceTexture, groundIrradianceHandle);
-
-                cmd.SetRenderTarget(renderingData.cameraData.renderer.cameraColorTargetHandle, renderingData.cameraData.renderer.cameraDepthTargetHandle);
-
-                if (isStereoEnabled)
-                    cmd.EnableShaderKeyword(STEREO_INSTANCING_ON);
-            }
-            context.ExecuteCommandBuffer(cmd);
-            cmd.Clear();
-            
-            CommandBufferPool.Release(cmd);
-        }
-        #endregion
-
-#if UNITY_6000_0_OR_NEWER
-        #region Render Graph Pass
+        
         private class PassData
         {
             internal Material lutMaterial;
@@ -1537,10 +1290,10 @@ public class PhysicallyBasedSkyURP : ScriptableRendererFeature
                 builder.SetRenderFunc((PassData data, UnsafeGraphContext context) => ExecutePass(data, context));
             }
         }
-        #endregion
-#endif
+        
 
-        #region Shared
+
+        
         public void Dispose()
         {
             m_LastPrecomputationParamHash = 0;
@@ -1620,7 +1373,7 @@ public class PhysicallyBasedSkyURP : ScriptableRendererFeature
             }
             return false;
         }
-        #endregion
+        
     }
 
     /// <summary>
@@ -1658,50 +1411,8 @@ public class PhysicallyBasedSkyURP : ScriptableRendererFeature
             this.lutMaterial = lutMaterial;
         }
 
-        #region Non Render Graph Pass
-#if UNITY_6000_0_OR_NEWER
-        [Obsolete]
-#endif
-        public override void OnCameraSetup(CommandBuffer cmd, ref RenderingData renderingData)
-        {
-            bool isFogEnabled = fog != null && fog.IsActive();
-            if (isFogEnabled)
-                UpdateFogProperties(renderingData.cameraData.camera);
 
-            ConfigureInput(ScriptableRenderPassInput.Depth);
-        }
-
-#if UNITY_6000_0_OR_NEWER
-        [Obsolete]
-#endif
-        public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)
-        {
-            CommandBuffer cmd = CommandBufferPool.Get();
-
-            using (new ProfilingScope(cmd, m_ProfilingSampler))
-            {
-                bool isFogEnabled = fog != null && fog.IsActive();
-                cmd.SetGlobalInteger(_FogEnabled, isFogEnabled ? 1 : 0);
-
-                var cameraColorHandle = renderingData.cameraData.renderer.cameraColorTargetHandle;
-
-                if (cameraColorHandle != null)
-                {
-                    CalculateActualScreenResolution(cmd, cameraColorHandle);
-
-                    Blitter.BlitCameraTexture(cmd, cameraColorHandle, cameraColorHandle, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, lutMaterial, pass: 4);
-                }
-                    
-            }
-            context.ExecuteCommandBuffer(cmd);
-            cmd.Clear();
-
-            CommandBufferPool.Release(cmd);
-        }
-        #endregion
-
-#if UNITY_6000_0_OR_NEWER
-        #region Render Graph Pass
+        
         private class PassData
         {
             internal Material lutMaterial;
@@ -1754,10 +1465,10 @@ public class PhysicallyBasedSkyURP : ScriptableRendererFeature
                 builder.SetRenderFunc((PassData data, UnsafeGraphContext context) => ExecutePass(data, context));
             }
         }
-        #endregion
-#endif
+        
 
-        #region Shared
+
+        
         public void Dispose()
         {
 
@@ -1838,7 +1549,7 @@ public class PhysicallyBasedSkyURP : ScriptableRendererFeature
             }
             cmd.SetGlobalVector(_ScreenResolution, new Vector4(width, height, 1.0f / width, 1.0f / height));
         }
-        #endregion
+        
     }
 
     /// <summary>
@@ -1856,50 +1567,17 @@ public class PhysicallyBasedSkyURP : ScriptableRendererFeature
 
         private static readonly int _EnableAtmosphericScattering = Shader.PropertyToID("_EnableAtmosphericScattering");
         private static readonly int _FogEnabled = Shader.PropertyToID("_FogEnabled");
-#if AMBIENT_PROBE
+
         private static readonly int _SkyTextureMipCounts = Shader.PropertyToID("_SkyTextureMipCounts");
-#endif // AMBIENT_PROBE
+
 
         public PBSkyPostPass()
         {
 
         }
+        
 
-        #region Non Render Graph Pass
-#if UNITY_6000_0_OR_NEWER
-        [Obsolete]
-#endif
-        public override void OnCameraSetup(CommandBuffer cmd, ref RenderingData renderingData)
-        {
-
-        }
-
-#if UNITY_6000_0_OR_NEWER
-        [Obsolete]
-#endif
-        public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)
-        {
-            CommandBuffer cmd = CommandBufferPool.Get();
-
-            using (new ProfilingScope(cmd, m_ProfilingSampler))
-            {
-                cmd.SetGlobalFloat(_EnableAtmosphericScattering, 0.0f);
-                cmd.SetGlobalInteger(_FogEnabled, 0);
-#if AMBIENT_PROBE
-                cmd.SetGlobalFloat(_SkyTextureMipCounts, 0.0f);
-#endif // AMBIENT_PROBE
-                cmd.DisableShaderKeyword(PHYSICALLY_BASED_SKY);
-                cmd.DisableShaderKeyword(SKY_NOT_BAKING);
-            }
-            context.ExecuteCommandBuffer(cmd);
-            cmd.Clear();
-            
-            CommandBufferPool.Release(cmd);
-        }
-        #endregion
-
-#if UNITY_6000_0_OR_NEWER
-        #region Render Graph Pass
+        
 
         private class PassData
         {
@@ -1913,7 +1591,9 @@ public class PhysicallyBasedSkyURP : ScriptableRendererFeature
 
             cmd.SetGlobalFloat(_EnableAtmosphericScattering, 0.0f);
             cmd.SetGlobalInteger(_FogEnabled, 0);
+
             cmd.SetGlobalFloat(_SkyTextureMipCounts, 0.0f);
+
             cmd.DisableShaderKeyword(PHYSICALLY_BASED_SKY);
             cmd.DisableShaderKeyword(SKY_NOT_BAKING);
         }
@@ -1931,18 +1611,18 @@ public class PhysicallyBasedSkyURP : ScriptableRendererFeature
                 builder.SetRenderFunc((PassData data, UnsafeGraphContext context) => ExecutePass(context));
             }
         }
-        #endregion
-#endif
+        
 
-        #region Shared
+
+        
         public void Dispose()
         {
 
         }
-        #endregion
+        
     }
 
-#if AMBIENT_PROBE
+
     /// <summary>
     /// This pass updates the sky and environment reflection.
     /// </summary>
@@ -1989,9 +1669,9 @@ public class PhysicallyBasedSkyURP : ScriptableRendererFeature
         // Cubemap Order: right, left, up, down, back, front. (+X, -X, +Y, -Y, +Z, -Z)
         private static readonly Matrix4x4[] skyViews = { rightView, leftView, upView, downView, backView, frontView };
 
-#if UNITY_6000_0_OR_NEWER
+
         private readonly RendererListHandle[] rendererListHandles = new RendererListHandle[6];
-#endif
+
         private readonly Matrix4x4[] skyViewMatrices = new Matrix4x4[6];
 
 
@@ -2006,157 +1686,11 @@ public class PhysicallyBasedSkyURP : ScriptableRendererFeature
             cloudsMaterial = material;
         }
 
-        #region Non Render Graph Pass
-#if UNITY_6000_0_OR_NEWER
-        [Obsolete]
-#endif
-        public override void OnCameraSetup(CommandBuffer cmd, ref RenderingData renderingData)
-        {
-            RenderTextureDescriptor desc = renderingData.cameraData.cameraTargetDescriptor;
-            desc.msaaSamples = 1;
-            desc.useMipMap = true;
-            desc.autoGenerateMips = true;
-            desc.width = reflectionResolution;
-            desc.height = reflectionResolution;
-            desc.dimension = TextureDimension.Cube;
-            desc.graphicsFormat = GraphicsFormat.B10G11R11_UFloatPack32;
-            desc.depthStencilFormat = GraphicsFormat.None;
-            desc.depthBufferBits = 0;
-            desc.useDynamicScale = false;
+        
 
-            bool hasVolumetricClouds = cloudsMaterial != null && Shader.IsKeywordEnabled(VOLUMETRIC_CLOUDS);
-
-#if UNITY_6000_0_OR_NEWER
-            RenderingUtils.ReAllocateHandleIfNeeded(ref probeColorHandle, desc, FilterMode.Trilinear, TextureWrapMode.Clamp, name: _GlossyEnvironmentCubeMap);
-            if (hasVolumetricClouds)
-                RenderingUtils.ReAllocateHandleIfNeeded(ref skyColorHandle, desc, FilterMode.Trilinear, TextureWrapMode.Clamp, name: _SkyTexture);
-#else
-            RenderingUtils.ReAllocateIfNeeded(ref probeColorHandle, desc, FilterMode.Trilinear, TextureWrapMode.Clamp, name: _GlossyEnvironmentCubeMap);
-            if (hasVolumetricClouds)
-                RenderingUtils.ReAllocateIfNeeded(ref skyColorHandle, desc, FilterMode.Trilinear, TextureWrapMode.Clamp, name: _SkyTexture);
-#endif
-
-            ConfigureTarget(probeColorHandle, probeColorHandle);
-        }
-
-#if UNITY_6000_0_OR_NEWER
-        [Obsolete]
-#endif
-        public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)
-        {
-            CommandBuffer cmd = CommandBufferPool.Get();
-
-            Camera camera = renderingData.cameraData.camera;
-            var desc = renderingData.cameraData.cameraTargetDescriptor;
-
-            bool isStereoEnabled = camera.stereoEnabled;
-
-            using (new ProfilingScope(cmd, m_ProfilingSampler))
-            {
-                if (isStereoEnabled)
-                    cmd.DisableShaderKeyword(STEREO_INSTANCING_ON);
-
-                float2 cameraResolution = float2(desc.width, desc.height);
-                Vector3 cameraPositionWS = camera.transform.position;
-                Vector4 cameraScreenSize = new Vector4(cameraResolution.x, cameraResolution.y, rcp(cameraResolution.x), rcp(cameraResolution.y));
-                Vector4 cameraScreenParams = new Vector4(cameraResolution.x, cameraResolution.y, 1.0f + cameraScreenSize.z, 1.0f + cameraScreenSize.w);
-                bool isDynamicAmbientMode = visualEnvironment.skyAmbientMode.value == VisualEnvironment.SkyAmbientMode.Dynamic;
-
-                Matrix4x4 skyMatrixP = GL.GetGPUProjectionMatrix(skyProjectionMatrix, true);
-
-                cmd.SetGlobalVector(worldSpaceCameraPos, Vector3.zero);
-                cmd.SetGlobalFloat(disableSunDisk, 1.0f);
-
-                cmd.SetGlobalVector(scaledScreenParams, skyViewScreenParams);
-                cmd.SetGlobalVector(screenSize, skyViewScreenSize);
-
-                bool hasVolumetricClouds = cloudsMaterial != null && Shader.IsKeywordEnabled(VOLUMETRIC_CLOUDS);
-
-                for (int i = 0; i < 6; i++)
-                {
-                    CoreUtils.SetRenderTarget(cmd, hasVolumetricClouds ? skyColorHandle : probeColorHandle, ClearFlag.None, 0, (CubemapFace)i);
-
-                    //var lookAt = Matrix4x4.LookAt(Vector3.zero, CoreUtils.lookAtList[i], CoreUtils.upVectorList[i]);
-                    //Matrix4x4 viewMatrix = lookAt * Matrix4x4.Scale(new Vector3(1.0f, 1.0f, -1.0f)); // Need to scale -1.0 on Z to match what is being done in the camera.wolrdToCameraMatrix API. ...
-
-                    Matrix4x4 viewMatrix = skyViews[i];
-                    viewMatrix *= Matrix4x4.Scale(new Vector3(1.0f, 1.0f, -1.0f)); // Need to scale -1.0 on Z to match what is being done in the camera.wolrdToCameraMatrix API. ...
-                    skyViewMatrices[i] = viewMatrix;
-
-                    Matrix4x4 skyMatrixVP = skyMatrixP * skyViewMatrices[i];
-
-                    // Camera matrices for skybox rendering
-                    cmd.SetViewMatrix(skyViewMatrices[i]);
-                    //cmd.SetGlobalMatrix(unity_MatrixVP, skyMatrixVP);
-                    cmd.SetGlobalMatrix(unity_MatrixInvVP, skyMatrixVP.inverse);
-                    
-#if AMBIENT_PROBE
-                    if (isPbrSky)
-                    {
-                        Blitter.BlitTexture(cmd, probeColorHandle, m_ScaleBias, RenderSettings.skybox, pass: 1);
-                    }
-                    else
-#endif // AMBIENT_PROBE
-                    {
-                        RendererList rendererList = context.CreateSkyboxRendererList(camera, skyProjectionMatrix, skyViewMatrices[i]);
-                        cmd.DrawRendererList(rendererList);
-                    }
-                }
-
-                cmd.SetGlobalTexture(skyTexture, hasVolumetricClouds ? skyColorHandle : probeColorHandle);
-                int skyTextureMips = visualEnvironment.skyAmbientMode.value == VisualEnvironment.SkyAmbientMode.Dynamic ?
-                    hasVolumetricClouds ? skyColorHandle.rt.mipmapCount : probeColorHandle.rt.mipmapCount : 0;
-                cmd.SetGlobalFloat(skyTextureMipCounts, skyTextureMips);
-
-                if (hasVolumetricClouds)
-                {
-                    // We split the rendering into 2 loops to avoid calling CopyTexture() multiple times, which can be slow on the GPU side.
-                    cmd.CopyTexture(skyColorHandle, probeColorHandle);
-
-                    for (int i = 0; i < 6; i++)
-                    {
-                        Matrix4x4 skyMatrixVP = skyMatrixP * skyViewMatrices[i];
-
-                        // Camera matrices for skybox rendering
-                        cmd.SetViewMatrix(skyViewMatrices[i]);
-                        //cmd.SetGlobalMatrix(unity_MatrixVP, skyMatrixVP);
-                        cmd.SetGlobalMatrix(unity_MatrixInvVP, skyMatrixVP.inverse);
-
-                        CoreUtils.SetRenderTarget(cmd, probeColorHandle, ClearFlag.None, 0, (CubemapFace)i);
-                        Blitter.BlitTexture(cmd, probeColorHandle, m_ScaleBias, cloudsMaterial, pass: 8);
-                    }
-                }
-
-                cmd.SetGlobalTexture(glossyEnvironmentCubeMap, probeColorHandle);
-#if AMBIENT_PROBE
-                RenderSettings.defaultReflectionMode = isDynamicAmbientMode ? DefaultReflectionMode.Custom : RenderSettings.defaultReflectionMode;
-                RenderSettings.customReflectionTexture = isDynamicAmbientMode ? probeColorHandle : null;
-#endif // AMBIENT_PROBE
-                cmd.SetGlobalVector(worldSpaceCameraPos, cameraPositionWS);
-                cmd.SetGlobalFloat(disableSunDisk, 0.0f);
-
-                Matrix4x4 matrixVP = GL.GetGPUProjectionMatrix(camera.projectionMatrix, true) * camera.worldToCameraMatrix;
-
-                // Camera matrices for objects rendering
-                cmd.SetViewMatrix(camera.worldToCameraMatrix);
-                //cmd.SetGlobalMatrix(unity_MatrixVP, matrixVP);
-                cmd.SetGlobalMatrix(unity_MatrixInvVP, matrixVP.inverse);
-                cmd.SetGlobalVector(scaledScreenParams, cameraScreenParams);
-                cmd.SetGlobalVector(screenSize, cameraScreenSize);
-
-                if (isStereoEnabled)
-                    cmd.EnableShaderKeyword(STEREO_INSTANCING_ON);
-            }
-
-            context.ExecuteCommandBuffer(cmd);
-            cmd.Clear();
-            
-            CommandBufferPool.Release(cmd);
-        }
-        #endregion
-
-#if UNITY_6000_0_OR_NEWER
-        #region Render Graph Pass
+        
+        
+        
         private class PassData
         {
             internal Material cloudsMaterial;
@@ -2346,18 +1880,17 @@ public class PhysicallyBasedSkyURP : ScriptableRendererFeature
                 builder.SetRenderFunc((PassData data, UnsafeGraphContext context) => ExecutePass(data, context));
             }
         }
-        #endregion
-#endif
+        
 
-        #region Shared
+        
         public void Dispose()
         {
             probeColorHandle?.Release();
             skyColorHandle?.Release();
         }
 
-        #endregion
+        
     }
-#endif // AMBIENT_PROBE
+
 
 }
